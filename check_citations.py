@@ -16,6 +16,10 @@ _GROUP = re.compile(r"\[(\d+(?:\s*[,–-]\s*\d+)*)\](?!\()")  # [3]  [1, 2]  [1-
 _CODE = re.compile(r"(```.*?```|`[^`\n]*`)", re.DOTALL)        # code blocks / spans: citations there do not count
 _REF_LINE = re.compile(r"^\s*\[(\d+)\](.*)$")                     # a reference line: "[n] ..."
 _URL = re.compile(r"https?://[^\s<>()\[\]]+")
+# RUBRIC 2.2: the family is the tool that returned the source, and the grader checks the url against it
+FAMILY_URL = {"arxiv": "https://arxiv.org/abs/", "hf-daily": "https://huggingface.co/papers/",
+              "hf-search": "https://huggingface.co/papers/", "web": "http"}
+MIN_FAMILIES = 3
 
 
 def check(report_text, sources):
@@ -51,7 +55,7 @@ def check(report_text, sources):
     for s in sources:
         n, url = s.get("n"), s.get("url")
         if not isinstance(n, int) or isinstance(n, bool):
-            problems.append(f"source {n!r} ({url}): n is not an integer")
+            problems.append(f"source {n!r} ({url}): n must be a JSON integer, e.g. \"n\": 1 (not \"1\")")
         elif n in url_of:
             problems.append(f"source [{n}] appears twice in sources.json")
         else:
@@ -62,6 +66,18 @@ def check(report_text, sources):
             problems.append(f"source [{n}]: duplicate url {url}")
         else:
             seen_urls.add(url)
+        family = s.get("source")
+        if family not in FAMILY_URL:
+            problems.append(f"source [{n}]: source {family!r} is not one of {sorted(FAMILY_URL)}")
+        elif isinstance(url, str) and not url.startswith(FAMILY_URL[family]):
+            problems.append(f"source [{n}]: a {family!r} source needs a url starting with {FAMILY_URL[family]}, "
+                            f"got {url}")
+
+    families = sorted({s.get("source") for s in sources} & FAMILY_URL.keys())
+    if len(families) < MIN_FAMILIES:
+        missing = sorted(FAMILY_URL.keys() - set(families))
+        problems.append(f"only {len(families)} source families cited ({', '.join(families)}); need >= {MIN_FAMILIES}: "
+                        f"cite sources from {' or '.join(missing)} found in the notes, or research them")
 
     # rule 3: the body is the text before the `## References` heading
     heading = _REF_HEADING.search(report_text)

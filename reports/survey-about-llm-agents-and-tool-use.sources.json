@@ -1,0 +1,74 @@
+[
+  {
+    "n": 1,
+    "id": "2610.12445",
+    "url": "https://arxiv.org/abs/2610.12445",
+    "title": "Caught in the Act: Probes Effectively Detect Sabotage and Catch Unverbalized Deception",
+    "date": "2026-10-08",
+    "source": "arxiv"
+  },
+  {
+    "n": 2,
+    "id": "2610.12375",
+    "url": "https://arxiv.org/abs/2610.12375",
+    "title": "OnTrack: Real-Time Monitoring and Intervention in LLM Agent Trajectories via Streaming Structure-Aware Optimal Transport",
+    "date": "2026-10-08",
+    "source": "arxiv"
+  },
+  {
+    "n": 3,
+    "id": "2610.12360",
+    "url": "https://arxiv.org/abs/2610.12360",
+    "title": "Accurate but Not Humble: Evaluating Epistemic Humility in LLM Agents under Knowledge Conflict",
+    "date": "2026-10-08",
+    "source": "arxiv"
+  },
+  {
+    "n": 4,
+    "id": "2609.05818",
+    "url": "https://huggingface.co/papers/2609.05818",
+    "title": "Agentic BAIM-LLM Evaluation (ABLE): Benchmarking LLM Use of Protein Design Tools",
+    "date": "2026-09-05",
+    "source": "hf-search"
+  },
+  {
+    "n": 5,
+    "id": "2609.11169",
+    "url": "https://huggingface.co/papers/2610.11169",
+    "title": "Skill Constellations: Tracing the Supply Chain of Agent Skills on GitHub",
+    "date": "2026-10-08",
+    "source": "hf-daily"
+  },
+  {
+    "n": 6,
+    "id": "N/A",
+    "url": "https://openai.github.io/openai-agents-python/tools/",
+    "title": "Tools - OpenAI Agents SDK",
+    "date": "unknown",
+    "source": "web"
+  },
+  {
+    "n": 7,
+    "id": "N/A",
+    "url": "https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/programmatic-tool-calling",
+    "title": "Programmatic Tool Calling",
+    "date": "unknown",
+    "source": "web"
+  },
+  {
+    "n": 8,
+    "id": "2512.13278",
+    "url": "https://huggingface.co/papers/2512.13278",
+    "title": "AutoTool: Dynamic Tool Selection and Integration for Agentic Reasoning",
+    "date": "2025-12-15",
+    "source": "hf-search"
+  },
+  {
+    "n": 9,
+    "id": "2609.33987",
+    "url": "https://huggingface.co/papers/2609.33987",
+    "title": "Opera: A Verbal Critic Framework for Long-horizon Coding Agents",
+    "date": "2026-10-08",
+    "source": "hf-daily"
+  }
+]

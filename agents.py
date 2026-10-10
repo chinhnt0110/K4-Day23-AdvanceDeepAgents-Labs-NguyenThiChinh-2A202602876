@@ -3,6 +3,9 @@
 Docs: https://docs.langchain.com/oss/python/deepagents/overview  (subagents: `subagents=[{...}]` of create_deep_agent)
 """
 from deepagents import create_deep_agent
+from deepagents.backends import CompositeBackend
+from deepagents.backends.protocol import FileUploadResponse
+from deepagents.backends.sandbox import BaseSandbox
 from langchain.agents.middleware import ModelCallLimitMiddleware, TodoListMiddleware, ToolCallLimitMiddleware
 
 from tools import SOURCE_TOOLS, web_fetch
@@ -21,6 +24,43 @@ LEAD_LIMITS = [ModelCallLimitMiddleware(run_limit=150, exit_behavior="end"),  # 
                ToolCallLimitMiddleware(run_limit=300)]                         # past the ceiling: tools answer an error
 SUB_LIMITS = [ModelCallLimitMiddleware(run_limit=40, exit_behavior="end"), ToolCallLimitMiddleware(run_limit=60)]
 
+
+
+# ---- file writes stay inside WORKDIR ----
+# deepagents' `permissions` cannot be combined with a sandbox that has `execute`, so writes are guarded here.
+# Daytona RAISES on a write it refuses (e.g. "/notes.md": the sandbox root is not writable), which would kill the whole
+# run; the guard answers an error the agent can read and recover from instead.
+class WorkdirSandbox(BaseSandbox):
+    """Pass-through sandbox backend whose file tools may only write under WORKDIR and never raise on a write."""
+
+    def __init__(self, inner):
+        self._inner = inner
+
+    @property
+    def id(self):
+        return self._inner.id
+
+    def execute(self, command, *, timeout=None):
+        return self._inner.execute(command, timeout=timeout)
+
+    def download_files(self, paths):
+        return self._inner.download_files(paths)
+
+    def upload_files(self, files):
+        allowed = [(path, content) for path, content in files if path.startswith(f"{WORKDIR}/")]
+        try:
+            ok = {r.path: r.error for r in self._inner.upload_files(allowed)} if allowed else {}
+        except Exception:  # the provider refused the batch: report it as an error, never raise
+            ok = {path: "permission_denied" for path, _ in allowed}
+        return [FileUploadResponse(path=path, error=ok.get(path, "permission_denied")) for path, _ in files]
+
+
+def guarded_backend(backend):
+    """Writes limited to WORKDIR; deepagents' own files (offloaded large tool results, conversation history) go to
+    WORKDIR/.agent instead of the sandbox root, which Daytona does not let us write."""
+    return CompositeBackend(default=WorkdirSandbox(backend), routes={}, artifacts_root=f"{WORKDIR}/.agent")
+
+
 NOTE_FORMAT = """# <sub-question>
 
 ## <paper or page title>
@@ -36,7 +76,8 @@ NOTE_FORMAT = """# <sub-question>
 
 # ---- TODO 1: the lead prompt ----
 LEAD_PROMPT = f"""You are the lead of a research team. You write a cited survey report on the topic the user gives you.
-You work in a sandbox: use absolute paths only. Researchers write their notes in {NOTES_DIR}/.
+You work in a sandbox: use absolute paths only, and write files ONLY under {WORKDIR}/ (writes anywhere
+else are denied; do not write summaries or drafts elsewhere). Researchers write their notes in {NOTES_DIR}/.
 
 ## Workflow (follow it in order)
 1. PLAN. Call write_todos with your plan. Split the topic into N independent sub-questions (N >= 3, usually 4-5;
@@ -45,19 +86,23 @@ You work in a sandbox: use absolute paths only. Researchers write their notes in
 2. DELEGATE IN PARALLEL. In ONE turn, call the `task` tool once per sub-question with subagent_type="researcher".
    A researcher sees ONLY your delegation message, nothing else, so every message must contain:
      - the overall topic and the exact sub-question;
-     - the source families to use (at least 2, and spread them over the researchers so the team covers ALL FOUR
-       families arxiv, hf-daily, hf-search, web; give at least one researcher hf-daily and one hf-search);
+     - the source families to use, at least 2 per researcher, assigned so the team covers ALL FOUR families.
+       Rotate these pairs over the researchers: (arxiv + web), (hf-search + web), (hf-daily + arxiv),
+       (hf-search + arxiv), ... Every run needs `web` from at least one researcher and Hugging Face from another;
      - the notes file path: {NOTES_DIR}/<NN>-<slug>.md (NN = 01, 02, ... ; slug = short lowercase-hyphenated name);
      - the note format below, and the instruction to return: path, number of sources, 2-line summary.
 3. CHECK THE RESULTS. Do not trust a researcher's reply alone: read every notes file with read_file. A note is usable
    when it has source blocks with a real url, a valid `source` label and concrete points. If a notes file is missing,
    empty, or has fewer than 3 sources, delegate that sub-question again (rephrased, other families).
-4. MERGE SOURCES. Write {SOURCES_PATH}: a JSON array of {{"n", "id", "url", "title", "date", "source"}}, numbered
-   from 1, one entry per distinct URL (no duplicate URLs), with every field copied from the notes. `source` is the
-   tool family that returned it (arxiv | hf-daily | hf-search | web) and must match the url:
-   arxiv -> https://arxiv.org/abs/<id>, hf-daily / hf-search -> https://huggingface.co/papers/<id>, web -> any URL.
-   Count the families present. If fewer than 3, delegate one more researcher (same rules) to a missing family
-   BEFORE writing the report, then merge again.
+4. MERGE SOURCES. Write {SOURCES_PATH}: a JSON array, one entry per distinct URL (no duplicate URLs), with every
+   field copied from the notes, `n` a JSON INTEGER numbered from 1 (1, not "1"):
+     [{{"n": 1, "id": "2501.00001", "url": "https://arxiv.org/abs/2501.00001", "title": "...", "date": "2025-01-02",
+       "source": "arxiv"}}, ...]
+   `source` is the tool family that returned it (arxiv | hf-daily | hf-search | web) and must match the url:
+   arxiv -> exactly https://arxiv.org/abs/<id> (https, /abs/), hf-daily / hf-search -> https://huggingface.co/papers/<id>.
+   Any other url (including arxiv.org/html/... or arxiv.org/pdf/... pages) is "web".
+   Count the families present. If fewer than 3, delegate one more researcher to a missing family (web or hf-daily
+   are the usual gaps) BEFORE writing the report, then merge again.
 5. WRITE THE REPORT BODY to {REPORT_PATH}, in English, with exactly this structure:
      # <Title of the survey>
      ## TL;DR            (3-5 bullets, each with a citation [n])
@@ -77,8 +122,10 @@ You work in a sandbox: use absolute paths only. Researchers write their notes in
    Run it again after EVERY edit of the report body. Then read {SOURCES_PATH}: if the uncited-source cleanup left
    fewer than 3 source families, edit the body to cite relevant sources of the missing families from the notes and
    finalize again.
-7. VALIDATE. Run `python3 {VALIDATOR_PATH}` with the `execute` tool. Fix every problem it prints (edit the body or
-   {SOURCES_PATH}, finalize again) until it prints OK.
+7. VALIDATE. Run `python3 {VALIDATOR_PATH}` with the `execute` tool. It also checks the source families and that
+   each url matches its family. Fix every problem it prints (problems about n, url or source: fix {SOURCES_PATH};
+   about citations or families: edit the body), finalize again, validate again, until it prints OK. If the finalizer
+   reports a problem, fix {SOURCES_PATH} first: it writes nothing until sources.json is valid.
 8. SPOT-CHECK. Delegate 3-5 important claims, each with its cited URL, to the `citation-checker` subagent in one
    message. Rewrite or remove any claim judged UNSUPPORTED (soften PARTIAL ones), then finalize and validate again.
 
@@ -100,7 +147,8 @@ the notes file path.
 - hf_search_papers(query, limit): Hugging Face papers by topic, includes older foundational papers. Family "hf-search".
 - web_search(query, objective, num_results): web search; describe the ideal page in `objective`. Family "web".
 - web_fetch(url): full text of one page, when a summary is not enough to get the facts right.
-- write_file / read_file: write your notes file.
+- write_file / read_file: write your notes file. Write ONLY the one file at the exact absolute path the lead
+  gave you (under {NOTES_DIR}/); writes anywhere else are denied. Write no other files.
 
 ## Rules
 - Use AT LEAST 2 source families (the ones the lead names; add others if useful). Collect 4-8 relevant sources.
@@ -179,6 +227,6 @@ def build_lead_agent(backend, model):
         model=model,
         system_prompt=LEAD_PROMPT,
         subagents=build_subagents(),
-        backend=backend,
+        backend=guarded_backend(backend),
         middleware=[TodoListMiddleware(), *LEAD_LIMITS],
     )

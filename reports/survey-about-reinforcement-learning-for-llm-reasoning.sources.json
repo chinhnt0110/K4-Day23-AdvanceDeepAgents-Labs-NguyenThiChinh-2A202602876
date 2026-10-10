@@ -1,0 +1,58 @@
+[
+  {
+    "n": 1,
+    "id": "2609.33987",
+    "url": "https://huggingface.co/papers/2609.33987",
+    "title": "Opera: A Verbal Critic Framework for Long-horizon Coding Agents",
+    "date": "2026-10-08",
+    "source": "hf-daily"
+  },
+  {
+    "n": 2,
+    "id": "2610.11216",
+    "url": "https://huggingface.co/papers/2610.11216",
+    "title": "The Lattice of Transition Laws",
+    "date": "2026-10-08",
+    "source": "hf-daily"
+  },
+  {
+    "n": 3,
+    "id": "2305.14992",
+    "url": "https://arxiv.org/abs/2305.14992",
+    "title": "Reasoning with Language Model is Planning with World Model",
+    "date": "2023-10-23",
+    "source": "arxiv"
+  },
+  {
+    "n": 4,
+    "id": "2610.11169",
+    "url": "https://huggingface.co/papers/2610.11169",
+    "title": "Skill Constellations: Tracing the Supply Chain of Agent Skills on GitHub",
+    "date": "2026-10-08",
+    "source": "hf-daily"
+  },
+  {
+    "n": 5,
+    "id": "2509.24107",
+    "url": "https://huggingface.co/papers/2509.24107",
+    "title": "Fathom-DeepResearch: Unlocking Long Horizon Information Retrieval and Synthesis for SLMs",
+    "date": "2025-09-28",
+    "source": "hf-search"
+  },
+  {
+    "n": 6,
+    "id": "2607.11862",
+    "url": "https://huggingface.co/papers/2607.11862",
+    "title": "Evidence-Backed Video Question Answering",
+    "date": "2026-07-13",
+    "source": "hf-search"
+  },
+  {
+    "n": 7,
+    "id": "2602.06855",
+    "url": "https://huggingface.co/papers/2602.06855",
+    "title": "AIRS-Bench: a Suite of Tasks for Frontier AI Research Science Agents",
+    "date": "2026-02-06",
+    "source": "hf-search"
+  }
+]

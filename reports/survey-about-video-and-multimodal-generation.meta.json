@@ -1,0 +1,24 @@
+{
+  "topic": "survey about video and multimodal generation",
+  "model": "gpt-4o-mini",
+  "elapsed_s": 79.7,
+  "subagent_calls": 7,
+  "tool_calls": {
+    "write_todos": 2,
+    "task": 7,
+    "read_file": 4,
+    "write_file": 2,
+    "execute": 4,
+    "edit_file": 3
+  },
+  "tokens": {
+    "input": 155459,
+    "output": 3672
+  },
+  "n_sources": 15,
+  "source_families": [
+    "arxiv",
+    "hf-search",
+    "web"
+  ]
+}
